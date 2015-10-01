@@ -1,7 +1,7 @@
 ﻿/**
  @description LimechatでのURL解析用スクリプト.
  @author sura.
- @version ｖ1.3.7.
+ @version ｖ1.3.8.
  @since 2011/08/21.
  */
 
@@ -11,11 +11,19 @@
  @param {String} _channel チャンネル名が入れられている.
  @param {String} _text 発言が入れられている.
  */
+ 
+
+
+
 function event::onChannelText(_prefix, _channel, _text) {
+	if(_text.match(/^((sm)|(SM))\d{3,8}/)){
+		nikonikoURL="http://www.nicovideo.jp/watch/sm"+ _text.match(/\d{3,8}/);
+		sendRaw("privmsg " + selectedchannel.name + " <color orange>[URL]<stop>"+nikonikoURL);
+		getHTTP(_channel, convertUrl(nikonikoURL), 'HEAD');
+	}
 	if (/(https?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text))
 		getHTTP(_channel, convertUrl(RegExp.$1), 'HEAD');
 }
-
 /**
  @description 特定のURLを別のURLに置き換えます.
  @param {String} _url 変換するURL.
@@ -26,7 +34,7 @@ function convertUrl(_url) {
 		return 'http://ext.nicovideo.jp/api/getthumbinfo/' + RegExp.$1;
 	else if (/^http:\/\/www.youtube.com\/watch?.*?v=([\-\w]+)/.exec(_url))
 		return 'http://gdata.youtube.com/feeds/api/videos/' + RegExp.$1;
-	return _url.replace(/#\w+$/, '');/*アンカー回避*/
+	return _url.replace(/#\w*$/, '');/*アンカー回避*/
 }
 
 /**
@@ -42,12 +50,12 @@ function getHTTP(_channel, _url, _method) {
 		if (axo.readyState == 4) {
 			try {
 				if (_method == 'GET')
-					send(_channel, '<color>07[script]<color> ' + checkUrl(_url, encodeCharset(axo)));
+					send(_channel, '<color>07[URL]<color> ' + checkUrl(_url, encodeCharset(axo)));
 				else if (_method == 'HEAD')
 					if (/(text\/\w+|application\/atom(cat|svc)?\+xml)/.exec(axo.getResponseHeader('Content-Type')))
 						getHTTP(_channel, _url, 'GET');
 					else if (axo.getResponseHeader('Content-Length'))
-						send(_channel, '<color>07[script]<color><' + getStringFilesize(axo.getResponseHeader('Content-Length')) + '>');
+						send(_channel, '<color>07[URL]<color><' + getStringFilesize(axo.getResponseHeader('Content-Length')) + '>');
 			} catch (e) {} finally {
 				axo.onreadystatechange = new Function();/*メモリリーク回避*/
 			}
