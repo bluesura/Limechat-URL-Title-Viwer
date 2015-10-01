@@ -1,7 +1,7 @@
 ﻿/**
  @description LimechatでのURL解析用スクリプト.
  @author sura.
- @version ｖ1.3.6.
+ @version ｖ1.3.7.
  @since 2011/08/21.
  */
 
@@ -91,7 +91,7 @@ function XMLHttpRequest() {
 			return new ActiveXObject(progIDs[i]);
 		} catch (e) {
 			if (i == progIDs.length - 1)
-				log('XMLHTTPが使用できません。');
+				send('XMLHTTPが使用できません。');
 		}
 	}
 }
@@ -123,11 +123,10 @@ function encodeCharset(_axo) {
 	var stream = new ActiveXObject('ADODB.Stream');
 	try {
 		var text = _axo.responseText;
-		log(_axo.getAllResponseHeaders());
 		var charset = '_autodetect';
 		if (_axo.getResponseHeader('Content-Type').match(/charset=["']?([\w-]+)/i)) {
 			charset = RegExp.$1;
-		} else if (text.match(/<head>(?:.|\n)*?charset=["']?([\w-_]+)(?:.|\n)*?<\/head>/i)) {
+		} else if (text.match(/<head(?:.|\n)*?>(?:.|\n)*?charset=["']?([\w-_]+)(?:.|\n)*?<\/head>/i)) {
 			charset = RegExp.$1;
 		}
 	} catch (e) {
