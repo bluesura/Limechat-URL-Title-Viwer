@@ -1,7 +1,21 @@
-﻿/**
+﻿//2011/12/08
+// 「何も表示しない」なんてことはないようにした
+//2011/12/07
+// Streamの処理限界量を５MB（笑）に制限
+// error処理をちょい追加
+// GET,HEADの処理を１つに
+//2011/12/06
+// byte計算方法とか微調整
+//2011/12/05
+// eval関数いい加減使うのあれなんで廃止
+// unescapeHtmlCharacterの量が多すぎたので最小限に
+// HEADでいったん安全性？確認する
+// byteを表示するようにしてみた
+// utf-8別に変換し直さなくていいんじゃね？
+/**
 	@description LimechatでのURL解析用スクリプト.
 	@author sura.
-	@version ｖ1.2.2.
+	@version ｖ1.3.3.
 	@since 2011/08/21.
  */
 
@@ -46,7 +60,7 @@ function getHTTP(_channel, _url, _method) {
 					if (/(text\/\w+|application\/atom(cat|svc)?\+xml)/.exec(axo.getResponseHeader('Content-Type')))
 						getHTTP(_channel, _url, 'GET');
 					else if (axo.getResponseHeader('Content-Length'))
-						send(_channel, '<color>07[script]<color>Filesize:' + getStringFilesize(axo.getResponseHeader('Content-Length')));
+						send(_channel, '<color>07[script]<color><' + getStringFilesize(axo.getResponseHeader('Content-Length')) + '>');
 			} catch (e) {} finally {
 				axo.onreadystatechange = new Function();/*メモリリーク回避*/
 			}
@@ -57,6 +71,7 @@ function getHTTP(_channel, _url, _method) {
 		axo.send('');
 	} catch (e) {
 		axo.onreadystatechange = new Function();/*メモリリーク回避*/
+		send(_channel, e.message+'みたい。ごめんネ（*´ω｀*）');
 	}
 }
 
@@ -85,8 +100,8 @@ function getStringFilesize(_byte) {
  */
 function encodeCharset(_axo) {
 	var stream = new ActiveXObject('ADODB.Stream');
-	var text = _axo.responseText;
 	try {
+		var text = _axo.responseText;
 		var charset = '_autodetect';
 		if (_axo.getResponseHeader('Content-Type').match(/charset=["']?([\w-]+)/i)) {
 			charset = RegExp.$1;
@@ -99,8 +114,8 @@ function encodeCharset(_axo) {
 		if (charset == 'utf-8') { return text; }
 		stream.Charset = charset;
 	}
-	if (text.length > 1024*1024*5) return;
 	try {
+		if (text.length > 1024*1024*5) return '<title>サイズオーバー</title>';
 		stream.Open();
 		stream.Type = 1;
 		stream.Write(_axo.responseBody);
@@ -163,8 +178,11 @@ var hosts = {
 	@return {String} 解析結果.
  */
 	'*': function (_text) {try {
-		return (/<title.*?>((?:.|\n|\r)*?)<\/title>/i.exec(_text)[1]);
-	} catch (e) {return;}}
+		if (/<title.*?>((?:.|\n|\r)*?)<\/title>/i.exec(_text))
+			return RegExp.$1;
+		else
+			return 'No Title';
+	} catch (e) {return e.message;}}
 };
 
 /**
