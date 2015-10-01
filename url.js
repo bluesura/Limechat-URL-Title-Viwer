@@ -22,8 +22,7 @@ function event::onUnload() {
 var TITLE = (function() {
 
 var COLOR_ = '',
-	FLG_SPECIAL_URL = 1
-;
+	FLG_SPECIAL_URL = 1;
 
 var title = {
 	onLoad: function() {
@@ -47,11 +46,17 @@ var title = {
  @return {String} 変換されたか・されてないURL.
  */
 function convertURL(_url) {
-	if (/^http:\/\/(?:www.nicovideo.jp\/watch|nico\.ms)\/((?:[sn]m)?\d+)/.exec(_url))
+	if (/^(ttps?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_url))
+		_url = 'h' + _url;
+
+	/*アンカーはエラー？を発生させるため回避*/
+	_url = _url.replace(/#\w*$/i, '');
+
+	if (/^http:\/\/(?:www.nicovideo.jp\/watch|nico\.ms)\/((?:[sn]m)?\d+)/i.exec(_url))
 		return 'http://ext.nicovideo.jp/api/getthumbinfo/' + RegExp.$1;
-	else if (/^http:\/\/www.youtube.com\/watch?.*?v=([\-\w]+)/.exec(_url))
+	else if (/^http:\/\/www.youtube.com\/watch?.*?v=([\-\w]+)/i.exec(_url))
 		return 'http://gdata.youtube.com/feeds/api/videos/' + RegExp.$1;
-	return _url.replace(/#\w*$/, '');/*アンカー回避*/
+	return _url;
 }
 
 /**
@@ -86,12 +91,12 @@ function getHTTP(_channel, _url, _method) {
 		axo.open(_method, _url, true);
 		if (_method == 'GET') {
 			axo.setRequestHeader('Range','bytes=0-32768');/*Range Headerで分割ダウンロード*/
-			axo.setRequestHeader('User-Agent','Mozilla/5.0 (compatible; url_v1.4.0@limechat;)');
+			axo.setRequestHeader('User-Agent','Mozilla/5.0 (compatible; url_v1.6.3@limechat;)');
 		}
 		axo.send('');
 	} catch (e) {
 		axo.onreadystatechange = new Function();/*メモリリーク回避*/
-		send(_channel, e.message+'みたい。ごめんネ（*´ω｀*）');
+		send(_channel, 'Error001:'+e.message);
 	}
 }
 
@@ -235,7 +240,7 @@ var hosts = {
 			return RegExp.$1;
 		else
 			return 'No Title';
-	} catch (e) {return e.message;}}
+	} catch (e) {return 'Error002:'+e.message;}}
 };
 
 /**
@@ -256,7 +261,7 @@ function cleanText(_text) {
 		if (_text.length > 150) {
 			_text = _text.slice(0, 150) + '...'
 		}
-	} catch (e) {log(e.message + ' : ' + _text)}
+	} catch (e) {log('Error003'+e.message + ' : ' + _text)}
 	return _text;
 }
 
@@ -280,7 +285,7 @@ function unescapeHtmlCharacter(_text) {
 			else
 				return '&' + ent + l;
 		}))){_text = temp;};
-	} catch (e) {log(e.message + ' : ' + _text)}
+	} catch (e) {log('Error004:'+e.message + ' : ' + _text)}
 	return _text;
 }
 
