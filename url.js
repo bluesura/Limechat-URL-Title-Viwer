@@ -1,7 +1,7 @@
 ﻿/**
  @description LimechatでのURL解析用スクリプト.
  @author sura.
- @version ｖ1.3.8.
+ @version v1.4.0.
  @since 2011/08/21.
  */
 
@@ -11,25 +11,34 @@
  @param {String} _channel チャンネル名が入れられている.
  @param {String} _text 発言が入れられている.
  */
- 
-
-
-
 function event::onChannelText(_prefix, _channel, _text) {
-	if(_text.match(/^((sm)|(SM))\d{3,8}/)){
-		nikonikoURL="http://www.nicovideo.jp/watch/sm"+ _text.match(/\d{3,8}/);
-		sendRaw("privmsg " + selectedchannel.name + " <color orange>[URL]<stop>"+nikonikoURL);
-		getHTTP(_channel, convertUrl(nikonikoURL), 'HEAD');
+	if(_text.match(/^(sm|SM)(\d{3,8})/)) {
+		var nicoURL = 'http://www.nicovideo.jp/watch/sm' + RegExp.$2;
+		send(_channel, '<color red><bold>[URL] <stop><bold>' + nicoURL);
+		getHTTP(_channel, convertURL(nicoURL), 'HEAD');
 	}
-	if (/(https?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text))
-		getHTTP(_channel, convertUrl(RegExp.$1), 'HEAD');
+	if (/(https?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text)) {
+		getHTTP(_channel, convertURL(RegExp.$1), 'HEAD');
+	}
 }
+
+var TITLE = (function() {
+	var title = {
+		onLoad: function() {
+		},
+		onUnload: function() {
+		},
+		onChannelText: function(_prefix, _channel, _text) {
+		}
+	};
+	return title;
+})();
 /**
  @description 特定のURLを別のURLに置き換えます.
  @param {String} _url 変換するURL.
  @return {String} 変換されたか・されてないURL.
  */
-function convertUrl(_url) {
+function convertURL(_url) {
 	if (/^http:\/\/(?:www.nicovideo.jp\/watch|nico\.ms)\/((?:[sn]m)?\d+)/.exec(_url))
 		return 'http://ext.nicovideo.jp/api/getthumbinfo/' + RegExp.$1;
 	else if (/^http:\/\/www.youtube.com\/watch?.*?v=([\-\w]+)/.exec(_url))
@@ -49,13 +58,17 @@ function getHTTP(_channel, _url, _method) {
 	axo.onreadystatechange = function() {
 		if (axo.readyState == 4) {
 			try {
-				if (_method == 'GET')
-					send(_channel, '<color>07[URL]<color> ' + checkUrl(_url, encodeCharset(axo)));
-				else if (_method == 'HEAD')
-					if (/(text\/\w+|application\/atom(cat|svc)?\+xml)/.exec(axo.getResponseHeader('Content-Type')))
+				if (_method == 'GET') {
+					// タイトル表示
+					send(_channel, '<color>07[URL] <stop>' + checkUrl(_url, encodeCharset(axo)));
+				} else if (_method == 'HEAD') {
+					if (/(text\/\w+|application\/atom(cat|svc)?\+xml)/.exec(axo.getResponseHeader('Content-Type'))) {
 						getHTTP(_channel, _url, 'GET');
-					else if (axo.getResponseHeader('Content-Length'))
-						send(_channel, '<color>07[URL]<color><' + getStringFilesize(axo.getResponseHeader('Content-Length')) + '>');
+					} else if (axo.getResponseHeader('Content-Length')) {
+						// ファイルサイズ表示
+						send(_channel, '<color>07[script] <stop><' + getStringFilesize(axo.getResponseHeader('Content-Length')) + '>');
+					}
+				}
 			} catch (e) {} finally {
 				axo.onreadystatechange = new Function();/*メモリリーク回避*/
 			}
@@ -65,7 +78,7 @@ function getHTTP(_channel, _url, _method) {
 		axo.open(_method, _url, true);
 		if (_method == 'GET') {
 			axo.setRequestHeader('Range','bytes=0-32768');/*Range Headerで分割ダウンロード*/
-			axo.setRequestHeader('User-Agent','Mozilla/5.0 (compatible; url_v1.3.5@limechat;)');
+			axo.setRequestHeader('User-Agent','Mozilla/5.0 (compatible; url_v1.4.0@limechat;)');
 		}
 		axo.send('');
 	} catch (e) {
@@ -129,9 +142,9 @@ function getStringFilesize(_byte) {
  */
 function encodeCharset(_axo) {
 	var stream = new ActiveXObject('ADODB.Stream');
+	var charset = '_autodetect';
 	try {
-		var text = _axo.responseText;
-		var charset = '_autodetect';
+		var text = _axo.responseText.slice(0, 1024*1024/2);
 		if (_axo.getResponseHeader('Content-Type').match(/charset=["']?([\w-]+)/i)) {
 			charset = RegExp.$1;
 		} else if (text.match(/<head(?:.|\n)*?>(?:.|\n)*?charset=["']?([\w-_]+)(?:.|\n)*?<\/head>/i)) {
@@ -140,17 +153,15 @@ function encodeCharset(_axo) {
 	} catch (e) {
 		charset = 'Shift_JIS';
 	} finally {
-		if (charset == 'utf-8') { return text; }
+		if (charset === 'utf-8') { return text; }
 		stream.Charset = charset;
 	}
 	try {
-		if (text.length > 1024*1024*5) return '<title>サイズオーバー</title>';
 		stream.Open();
 		stream.Type = 1;
 		stream.Write(_axo.responseBody);
 		stream.Position = 0;
 		stream.Type = 2;
-		var text = '';
 		text = stream.ReadText();
 	} catch (e) {} finally {
 		stream.Close();
@@ -174,32 +185,32 @@ function checkUrl(_url, _text) {
 var hosts = {
 	/*専用解析*/
 	'ext.nicovideo.jp/api/getthumbinfo/': function (_text) {try {
-		return (hosts['*'](_text) + '(' + /<length>(.*?)<\/length>/i.exec(_text)[1] + ')' + ' <color>12[説明]<color> ' + /<description>(.*?)<\/description>/i.exec(_text)[1]);
+		return (hosts['*'](_text) + '(' + /<length>(.*?)<\/length>/i.exec(_text)[1] + ')' + ' <color>12[説明]<stop>' + /<description>(.*?)<\/description>/i.exec(_text)[1]);
 	} catch (e) {try {
 		return (/<code>(.*?)<\/code>/.exec(_text)[1]);
 	} catch (e) { return hosts['*'](_text)}}},
 	'gdata.youtube.com/feeds/api/videos/': function (_text) {try {
-		return (hosts['*'](_text) + ' <color>12[説明]<color> ' + /<content type='text'>(.*?)<\/content>/i.exec(_text)[1]);
+		return (hosts['*'](_text) + ' <color>12[説明]<stop>' + /<content type='text'>(.*?)<\/content>/i.exec(_text)[1]);
 	} catch (e) {return hosts['*'](_text)}},
 	'www.pixiv.net/.*illust_id=': function (_text) {try {
-		return (/<title>「(.*?)」\//.exec(_text)[1] + ' <color>12[user]<color> ' + /\/「(.*?)」の.*?<\/title>/.exec(_text)[1] + ' <color>12[説明]<color> ' + /<meta property="og:description" content="(.*?)">/.exec(_text)[1]);
+		return (/<title>「(.*?)」\//.exec(_text)[1] + ' <color>12[user]<stop>' + /\/「(.*?)」の.*?<\/title>/.exec(_text)[1] + ' <color>12[説明]<stop>' + /<meta property="og:description" content="(.*?)">/.exec(_text)[1]);
 	} catch (e) {return hosts['*'](_text)}},
 	'www1.axfc.net': function (_text) {try {
 		var temp = '' + hosts['*'](_text);
 		if (/<div class="comme"><h3>投稿者ファイル説明<\/h3><p>(.*?)<br><\/p>/.exec(_text))
-			temp += ' <color>12[説明]<color> ' + RegExp.$1;
+			temp += ' <color>12[説明]<stop>' + RegExp.$1;
 		if (/<h3>オリジナルファイルネーム<\/h3><p>(.*?)<\/p><\/div>/.exec(_text))
-			temp += ' <color>12[file]<color> ' + RegExp.$1;
+			temp += ' <color>12[file]<stop>' + RegExp.$1;
 		return temp;
 	} catch (e) {return hosts['*'](_text)}},
 	'u6.getuploader.com': function (_text) {try {
 		return (hosts['*'](_text) + ' | ' + /<meta name="Description" content="(.*?)"/.exec(_text)[1]);
 	} catch (e) {return hosts['*'](_text)}},
 	'twitvideo.jp': function (_text) {try {
-		return (hosts['*'](_text) + ' <color>12[コメント]<color> ' + /<span class="sf_comment">(.*?)<\/span>/.exec(_text)[1]);
+		return (hosts['*'](_text) + ' <color>12[コメント]<stop>' + /<span class="sf_comment">(.*?)<\/span>/.exec(_text)[1]);
 	} catch (e) {return hosts['*'](_text)}},
 	'twitpic.com': function (_text) {try {
-		return (hosts['*'](_text) + ' <color>12[名前]<color> ' + /<p><span id="photo-info-name">(.*?)<\/span>/.exec(_text)[1]);
+		return (hosts['*'](_text) + ' <color>12[名前]<stop>' + /<p><span id="photo-info-name">(.*?)<\/span>/.exec(_text)[1]);
 	} catch (e) {return hosts['*'](_text)}},
 /**
  @description タイトルのタグを調べて返します.
@@ -220,16 +231,19 @@ var hosts = {
  @return {String} 整理された文字列.
  */
 function cleanText(_text) {
+	var regexp = /(^[\s|　]+|[\s|　]+$|\n|\r)|([\s|　]+)/g;
+	var callback = function(all, zero, one) {
+		if (zero)
+			return '';
+		else if (one)
+			return ' ';
+	};
 	try {
-		_text = _text.replace(/(^[\s|　]+|[\s|　]+$|\n|\r)|([\s|　]+)/g, function(all, zero, one) {
-			if (zero)
-				return '';
-			else if (one)
-				return ' ';
-		})
-		if (_text.length > 150)
+		_text = _text.replace(regexp, callback);
+		if (_text.length > 150) {
 			_text = _text.slice(0, 150) + '...'
-	} catch (e) {}
+		}
+	} catch (e) {log(e.message + ' : ' + _text)}
 	return _text;
 }
 
@@ -253,6 +267,6 @@ function unescapeHtmlCharacter(_text) {
 			else
 				return '&' + ent + l;
 		}))){_text = temp;};
-	} catch (e) {}
+	} catch (e) {log(e.message + ' : ' + _text)}
 	return _text;
 }
