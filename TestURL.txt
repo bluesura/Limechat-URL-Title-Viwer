@@ -1,0 +1,19 @@
+﻿// 動作チェック用
+// https://skydrive.live.com/?cid=80e5373914330c8a&sc=documents&uc=2&id=80E5373914330C8A%21126
+// //ニコ専用チェック
+// http://www.nicovideo.jp/watch/sm16233278
+// //アンカーチェック
+// http://lunatic284.blog90.fc2.com/blog-entry-9215.html#comment
+// //pixiv専用チェック
+// http://www.pixiv.net/member_illust.php?mode=medium&illust_id=22732377
+// //youtube専用チェック
+// http://www.youtube.com/watch?v=w-vH8orvNSc
+// //斧専用チェック
+// http://www1.axfc.net/uploader/N/so/139588
+// //バイナリファイル専用チェック
+// https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Commons-logo.svg/26px-Commons-logo.svg.png
+// //getuploader専用チェック
+// http://u6.getuploader.com/falljohn/download/91/test-Oya-Change.zip
+
+// h抜け
+// ttp://www.nicovideo.jp/watch/sm23465892
