@@ -1,7 +1,7 @@
 ﻿/**
  @description LimechatでのURL解析用スクリプト.
  @author sura.
- @version v1_4_1.
+ @version v1_5_2.
  @since 2011/08/21.
  */
 
@@ -21,6 +21,10 @@ function event::onUnload() {
 
 var TITLE = (function() {
 
+var COLOR_ = '',
+	FLG_SPECIAL_URL = 1
+;
+
 var title = {
 	onLoad: function() {
 	},
@@ -31,7 +35,7 @@ var title = {
 			var nicoURL = 'http://www.nicovideo.jp/watch/' + RegExp.$1;
 			send(_channel, '<color red><bold>[URL] <stop><bold>' + nicoURL);
 			getHTTP(_channel, convertURL(nicoURL), 'HEAD');
-		} else if (/(https?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text)) {
+		} else if (/(h?ttps?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text)) {
 			getHTTP(_channel, convertURL(RegExp.$1), 'HEAD');
 		}
 	}
@@ -57,7 +61,7 @@ function convertURL(_url) {
  @param {String} _url GETするURL.
  */
 function getHTTP(_channel, _url, _method) {
-	var axo = xmlhttp;
+	var axo = XMLHttpRequest();
 	// axo.setTimeouts(5*1000,5*1000,15*1000,15*1000);
 	axo.onreadystatechange = function() {
 		if (axo.readyState == 4) {
@@ -66,7 +70,7 @@ function getHTTP(_channel, _url, _method) {
 					// タイトル表示
 					send(_channel, '<color>07[URL] <stop>' + checkUrl(_url, encodeCharset(axo)));
 				} else if (_method == 'HEAD') {
-					if (/(text\/\w+|application\/atom(cat|svc)?\+xml)/.exec(axo.getResponseHeader('Content-Type'))) {
+					if (/(text\/\w+|application\/(atom(cat|svc)?\+)?xml).+/.exec(axo.getResponseHeader('Content-Type'))) {
 						getHTTP(_channel, _url, 'GET');
 					} else if (axo.getResponseHeader('Content-Length')) {
 						// ファイルサイズ表示
@@ -194,7 +198,7 @@ function checkUrl(_url, _text) {
 var hosts = {
 	/*専用解析*/
 	'ext.nicovideo.jp/api/getthumbinfo/': function (_text) {try {
-		return (hosts['*'](_text) + '(' + /<length>(.*?)<\/length>/i.exec(_text)[1] + ')' + ' <color>12[説明]<stop>' + /<description>(.*?)<\/description>/i.exec(_text)[1]);
+		return (hosts['*'](_text) + '(' + /<length>(.*?)<\/length>/i.exec(_text)[1] + ')' + ' <color>12[説明]<stop>' + removeHtmlTag(/<description>(.*?)<\/description>/i.exec(_text)[1]));
 	} catch (e) {try {
 		return (/<code>(.*?)<\/code>/.exec(_text)[1]);
 	} catch (e) { return hosts['*'](_text)}}},
@@ -257,7 +261,7 @@ function cleanText(_text) {
 }
 
 /**
- @description HTML文字コード表現から文字列へ
+ @description HTML文字コード表現から文字列へ.
  @param {String} _text 変換する文字列.
  @return {String} 変換された文字列.
  */
@@ -280,5 +284,16 @@ function unescapeHtmlCharacter(_text) {
 	return _text;
 }
 
+/**
+ @description 文字列からHTMLタグを除去.
+ @param {String} _text 変換する文字列.
+ @return {String} 変換された文字列.
+ */
+function removeHtmlTag(_text) {
+	return unescapeHtmlCharacter(_text).replace(/<("[^"]*"|'[^']*'|[^'">])*>/g,'');
+}
+
+
 return title;
 })();
+
