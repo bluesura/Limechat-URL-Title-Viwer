@@ -1,7 +1,7 @@
 ﻿/**
  @description LimechatでのURL解析用スクリプト.
  @author sura.
- @version v1_5_2.
+ @version v1_6_2.
  @since 2011/08/21.
  */
 
