@@ -1,7 +1,7 @@
 ﻿/**
  @description LimechatでのURL解析用スクリプト.
  @author sura.
- @version v1.4.0.
+ @version v1_4_1.
  @since 2011/08/21.
  */
 
@@ -12,27 +12,31 @@
  @param {String} _text 発言が入れられている.
  */
 function event::onChannelText(_prefix, _channel, _text) {
-	if(_text.match(/^(sm|SM)(\d{3,8})/)) {
-		var nicoURL = 'http://www.nicovideo.jp/watch/sm' + RegExp.$2;
-		send(_channel, '<color red><bold>[URL] <stop><bold>' + nicoURL);
-		getHTTP(_channel, convertURL(nicoURL), 'HEAD');
-	}
-	if (/(https?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text)) {
-		getHTTP(_channel, convertURL(RegExp.$1), 'HEAD');
-	}
+	TITLE.onChannelText(_prefix, _channel, _text);
+}
+
+function event::onUnload() {
+	TITLE = null;
 }
 
 var TITLE = (function() {
-	var title = {
-		onLoad: function() {
-		},
-		onUnload: function() {
-		},
-		onChannelText: function(_prefix, _channel, _text) {
+
+var title = {
+	onLoad: function() {
+	},
+	onUnload: function() {
+	},
+	onChannelText: function(_prefix, _channel, _text) {
+		if(/^([sn]m\d{3,8})/i.exec(_text)) {
+			var nicoURL = 'http://www.nicovideo.jp/watch/' + RegExp.$1;
+			send(_channel, '<color red><bold>[URL] <stop><bold>' + nicoURL);
+			getHTTP(_channel, convertURL(nicoURL), 'HEAD');
+		} else if (/(https?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text)) {
+			getHTTP(_channel, convertURL(RegExp.$1), 'HEAD');
 		}
-	};
-	return title;
-})();
+	}
+};
+
 /**
  @description 特定のURLを別のURLに置き換えます.
  @param {String} _url 変換するURL.
@@ -53,7 +57,7 @@ function convertURL(_url) {
  @param {String} _url GETするURL.
  */
 function getHTTP(_channel, _url, _method) {
-	var axo = XMLHttpRequest();
+	var axo = xmlhttp;
 	// axo.setTimeouts(5*1000,5*1000,15*1000,15*1000);
 	axo.onreadystatechange = function() {
 		if (axo.readyState == 4) {
@@ -87,11 +91,8 @@ function getHTTP(_channel, _url, _method) {
 	}
 }
 
-/**
- @description あらかじめヘッダーでGETしていいものか確認.
- @return ActiveXObject(XMLHTTP) Objectを返します。.
- */
-function XMLHttpRequest() {
+//スクリプト読み込み時に、使用可能なIDを特定
+var id_prog = (function() {
 	var progIDs = [
 		'Msxml2.ServerXMLHTTP.6.0',
 		'Msxml2.ServerXMLHTTP.5.0',
@@ -106,15 +107,23 @@ function XMLHttpRequest() {
 		'Msxml2.XMLHTTP',
 		'Microsoft.XMLHTTP'
 	];
-
-	for (var i = 0; i < progIDs.length; ++i) {
+	for (var i = progIDs.length; i--;) {
 		try {
-			return new ActiveXObject(progIDs[i]);
+			new ActiveXObject(progIDs[i]);
+			return progIDs[i];
 		} catch (e) {
 			if (i == progIDs.length - 1)
-				send('XMLHTTPが使用できません。');
+				log('XMLHTTPが使用できません。');
 		}
 	}
+})();
+
+/**
+ @description あらかじめヘッダーでGETしていいものか確認.
+ @return ActiveXObject(XMLHTTP) Objectを返します。.
+ */
+function XMLHttpRequest() {
+	return new ActiveXObject(id_prog);
 }
 
 /**
@@ -270,3 +279,6 @@ function unescapeHtmlCharacter(_text) {
 	} catch (e) {log(e.message + ' : ' + _text)}
 	return _text;
 }
+
+return title;
+})();
