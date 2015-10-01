@@ -1,4 +1,8 @@
-﻿//2011/12/06
+﻿//2011/12/07
+// Streamの処理限界量を５MB（笑）に制限
+// error処理をちょい追加
+// GET,HEADの処理を１つに
+//2011/12/06
 // byte計算方法とか微調整
 //2011/12/05
 // eval関数いい加減使うのあれなんで廃止
@@ -9,7 +13,7 @@
 /**
 	@description LimechatでのURL解析用スクリプト.
 	@author sura.
-	@version ｖ1.2.
+	@version ｖ1.2.2.
 	@since 2011/08/21.
  */
 
@@ -21,7 +25,7 @@
  */
 function event::onChannelText(_prefix, _channel, _text) {
 	if (/(https?:\/\/[\w-~+*_@.,';:!?$&=%#()\/]+)/i.exec(_text))
-		getHeader(_channel, convertUrl(RegExp.$1));
+		getHTTP(_channel, convertUrl(RegExp.$1), 'HEAD');
 }
 
 /**
@@ -39,26 +43,33 @@ function convertUrl(_url) {
 
 /**
 	@description あらかじめヘッダーでGETしていいものか確認.
+	@description URL先をゲットして、タイトルを解析し、それを指定のチャンネルに送信します.
 	@param {String} _channel 送信するチャンネル名.
 	@param {String} _url GETするURL.
  */
-function getHeader(_channel, _url) {
+function getHTTP(_channel, _url, _method) {
 	var axo = new ActiveXObject('Msxml2.ServerXMLHTTP.6.0');
 	axo.onreadystatechange = function() {
 		if (axo.readyState == 4) {
 			try {
-				if (/(text\/\w+|application\/atom(cat|svc)?\+xml)/.exec(axo.getResponseHeader('Content-Type'))) {
-					getHTTP(_channel, _url);
-				} else if (axo.getResponseHeader('Content-Length')) {
-					send(_channel, '<color>07[script]<color>Filesize:' + getStringFilesize(axo.getResponseHeader('Content-Length')));
-				}
+				if (_method == 'GET')
+					send(_channel, '<color>07[script]<color> ' + checkUrl(_url, encodeCharset(axo)));
+				else if (_method == 'HEAD')
+					if (/(text\/\w+|application\/atom(cat|svc)?\+xml)/.exec(axo.getResponseHeader('Content-Type')))
+						getHTTP(_channel, _url, 'GET');
+					else if (axo.getResponseHeader('Content-Length'))
+						send(_channel, '<color>07[script]<color>Filesize:' + getStringFilesize(axo.getResponseHeader('Content-Length')));
 			} catch (e) {} finally {
 				axo.onreadystatechange = new Function();/*メモリリーク回避*/
 			}
 		}
 	}
-	axo.open('HEAD', _url, true);
-	axo.send('');
+	try {
+		axo.open(_method, _url, true);
+		axo.send('');
+	} catch (e) {
+		axo.onreadystatechange = new Function();/*メモリリーク回避*/
+	}
 }
 
 /**
@@ -80,51 +91,33 @@ function getStringFilesize(_byte) {
 }
 
 /**
-	@description URL先をゲットして、タイトルを解析し、それを指定のチャンネルに送信します.
-	@param {String} _channel 送信するチャンネル名.
-	@param {String} _url GETするURL.
- */
-function getHTTP(_channel, _url) {
-	var axo = new ActiveXObject('Msxml2.ServerXMLHTTP.6.0');
-	axo.onreadystatechange = function() {
-		if (axo.readyState == 4) {
-			try {
-				send(_channel, '<color>07[script]<color> ' + checkUrl(_url, encodeCharset(axo)));
-			} catch (e) {} finally {
-				axo.onreadystatechange = new Function();/*メモリリーク回避*/
-			}
-		}
-	}
-	axo.open('GET', _url, true);
-	axo.send('');
-}
-
-/**
 	@description ADODB.Streamでバイナリデータを記述されている文字コードに変換して返します.
 	@param {Object} _axo ActiveXObject('Msxml')でGETしたObject.
 	@return {String} 変換された文字列.
  */
 function encodeCharset(_axo) {
 	var stream = new ActiveXObject('ADODB.Stream');
+	var text = _axo.responseText;
 	try {
 		var charset = '_autodetect';
 		if (_axo.getResponseHeader('Content-Type').match(/charset=["']?([\w-]+)/i)) {
 			charset = RegExp.$1;
-		} else if (_axo.responseText.match(/<head>(?:.|\n)*?charset=["']?([\w-_]+)(?:.|\n)*?<\/head>/i)) {
+		} else if (text.match(/<head>(?:.|\n)*?charset=["']?([\w-_]+)(?:.|\n)*?<\/head>/i)) {
 			charset = RegExp.$1;
 		}
 	} catch (e) {
 		charset = 'Shift_JIS';
 	} finally {
-		if (charset == 'utf-8') { return val; }
+		if (charset == 'utf-8') { return text; }
 		stream.Charset = charset;
 	}
-	stream.Open();
-	stream.Type = 1;
-	stream.Write(_axo.responseBody);
-	stream.Position = 0;
-	stream.Type = 2;
+	if (text.length > 1024*1024*5) return;
 	try {
+		stream.Open();
+		stream.Type = 1;
+		stream.Write(_axo.responseBody);
+		stream.Position = 0;
+		stream.Type = 2;
 		var text = '';
 		text = stream.ReadText();
 	} catch (e) {} finally {
@@ -192,14 +185,16 @@ var hosts = {
 	@return {String} 整理された文字列.
  */
 function cleanText(_text) {
-	_text = _text.replace(/(^[\s|　]+|[\s|　]+$|\n|\r)|([\s|　]+)/g, function(all, zero, one) {
-		if (zero)
-			return '';
-		else if (one)
-			return ' ';
-	})
-	if (_text.length > 150)
-		_text = _text.slice(0, 150) + '...'
+	try {
+		_text = _text.replace(/(^[\s|　]+|[\s|　]+$|\n|\r)|([\s|　]+)/g, function(all, zero, one) {
+			if (zero)
+				return '';
+			else if (one)
+				return ' ';
+		})
+		if (_text.length > 150)
+			_text = _text.slice(0, 150) + '...'
+	} catch (e) {}
 	return _text;
 }
 
@@ -208,22 +203,21 @@ function cleanText(_text) {
 	@param {String} _text 変換する文字列.
 	@return {String} 変換された文字列.
  */
-// 対象コード<-大文字小文字をどうする？
-var ReplaceReg = new RegExp(/&#(\d+);?|&#x([0-9a-fA-F]+);?|&(amp|gt|lt|nbsp|quot)(;)?/g);
-// 置換テーブル
-var Entities = {'nbsp': 160, 'quot': 34, 'gt': 62, 'lt': 60, 'amp': 38};
 function unescapeHtmlCharacter(_text) {
-	var temp;
-	while(_text != (temp = _text.replace(ReplaceReg, function(str, num, hex, ent,l) {
-		if (num)
-			return String.fromCharCode(num);
-		else if (hex)
-			return String.fromCharCode(parseInt('0x' + hex));
-		else if (Entities[ent])
-			return String.fromCharCode(Entities[ent]);
-		else
-			return '&' + ent + l;
-	}))){_text = temp;};
-
+	var ReplaceReg = new RegExp(/&#(\d+);?|&#x([0-9a-fA-F]+);?|&(amp|gt|lt|nbsp|quot)(;)?/g);
+	var Entities = {'nbsp': 160, 'quot': 34, 'gt': 62, 'lt': 60, 'amp': 38};
+	try {
+		var temp;
+		while(_text != (temp = _text.replace(ReplaceReg, function(str, num, hex, ent,l) {
+			if (num)
+				return String.fromCharCode(num);
+			else if (hex)
+				return String.fromCharCode(parseInt('0x' + hex));
+			else if (Entities[ent])
+				return String.fromCharCode(Entities[ent]);
+			else
+				return '&' + ent + l;
+		}))){_text = temp;};
+	} catch (e) {}
 	return _text;
 }
