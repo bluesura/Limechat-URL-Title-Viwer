@@ -1,16 +1,4 @@
-﻿//2011/12/07
-// Streamの処理限界量を５MB（笑）に制限
-// error処理をちょい追加
-// GET,HEADの処理を１つに
-//2011/12/06
-// byte計算方法とか微調整
-//2011/12/05
-// eval関数いい加減使うのあれなんで廃止
-// unescapeHtmlCharacterの量が多すぎたので最小限に
-// HEADでいったん安全性？確認する
-// byteを表示するようにしてみた
-// utf-8別に変換し直さなくていいんじゃね？
-/**
+﻿/**
 	@description LimechatでのURL解析用スクリプト.
 	@author sura.
 	@version ｖ1.2.2.
